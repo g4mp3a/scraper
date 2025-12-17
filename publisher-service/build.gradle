@@ -1,0 +1,14 @@
+dependencies {
+
+	def ext = rootProject.ext
+    
+    // --- CORE SPRING BOOT ---
+    implementation "org.springframework.boot:spring-boot-starter:${ext.springBootVersion}"
+    
+    // --- CDC DEBEZIUM EMBEDDED ---
+    implementation "io.debezium:debezium-embedded:${ext.debeziumVersion}"
+    implementation "io.debezium:debezium-connector-postgres:${ext.debeziumVersion}"
+    
+    // --- GOOGLE PUBSUB ---
+    implementation "com.google.cloud:spring-cloud-gcp-starter-pubsub:3.5.0"
+}

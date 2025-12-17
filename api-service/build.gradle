@@ -1,0 +1,12 @@
+dependencies {
+
+    def ext = rootProject.ext
+
+    // --- CORE SPRING BOOT and WEB ---
+    implementation "${ext.springBootWeb}:${ext.springBootVersion}"
+
+    // --- SECURITY / AUTH ---
+    implementation "${ext.springBootSecurity}:${ext.springBootVersion}"
+    implementation "${ext.springBootValidation}:${ext.springBootVersion}"
+    implementation "com.google.firebase:firebase-admin:${ext.firebaseAdminVersion}"
+}

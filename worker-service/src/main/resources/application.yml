@@ -1,0 +1,6 @@
+ktor:
+  client:
+    # Safe defaults for scraping
+    connect-timeout-ms: 10000 # 10 seconds to connect
+    request-timeout-ms: 30000 # 60 seconds for the entire request/response
+    max-connections: 100

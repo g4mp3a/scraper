@@ -1,0 +1,83 @@
+# Making kotlin or even groovy dsl work in a multiproject build proved to be very challenging, so decided to NOT use the version catalog for now. 
+# TODO: Explore using the version catalog and reverting to .kts when time allows.
+
+[versions]
+# --- Core Platform Versions ---
+springBoot = "3.2.1"
+kotlin = "1.9.21"
+junit = "5.10.1"
+
+# --- Database / Persistence ---
+postgres = "42.7.1"
+liquibase = "4.25.1"
+
+# --- Cloud / Messaging / CDC ---
+firebaseAdmin = "9.2.0" # Stable version for Firebase Admin SDK
+gcpPubsub = "1.127.0"
+debezium = "2.4.0.Final" # Check version
+
+# --- Scraping ---
+jsoup = "1.17.2"
+ktor = "2.3.8"
+gson = "2.10.1"
+
+[libraries]
+# --- CORE SPRING BOOT ---
+# Dependencies without version are managed by the Spring Boot BOM
+spring-boot-starter = { group = "org.springframework.boot", name = "spring-boot-starter" }
+spring-boot-web = { group = "org.springframework.boot", name = "spring-boot-starter-web" }
+spring-boot-data-jpa = { group = "org.springframework.boot", name = "spring-boot-starter-data-jpa" }
+spring-boot-security = { group = "org.springframework.boot", name = "spring-boot-starter-security" }
+spring-boot-validation = { group = "org.springframework.boot", name = "spring-boot-starter-validation" }
+spring-boot-aop = { group = "org.springframework.boot", name = "spring-boot-starter-aop" }
+spring-boot-devtools = { group = "org.springframework.boot", name = "spring-boot-devtools" }
+spring-retry = { group = "org.springframework.retry", name = "spring-retry" }
+
+# --- KOTLIN/JACKSON ---
+kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect" }
+jackson-kotlin = { group = "com.fasterxml.jackson.module", name = "jackson-module-kotlin" }
+
+# --- DATABASE / PERSISTENCE ---
+postgres-driver = { group = "org.postgresql", name = "postgresql", version.ref = "postgres" }
+liquibase = { group = "org.liquibase", name = "liquibase-core", version.ref = "liquibase" }
+
+# --- CLOUD / MESSAGING / CDC ---
+firebase-admin = { group = "com.google.firebase", name = "firebase-admin", version.ref = "firebaseAdmin" }
+gcp-pubsub = { group = "com.google.cloud", name = "google-cloud-pubsub", version.ref = "gcpPubsub" }
+debezium-embedded = { group = "io.debezium", name = "debezium-embedded", version.ref = "debezium" }
+debezium-postgres = { group = "io.debezium", name = "debezium-connector-postgresql", version.ref = "debezium" }
+
+# --- SCRAPING / HTTP ---
+jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
+ktor-client-cio = { group = "io.ktor", name = "ktor-client-cio", version.ref = "ktor" }
+ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-jackson = { group = "io.ktor", name = "ktor-serialization-jackson", version.ref = "ktor" }
+gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+
+# --- TESTING ---
+junit-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "junit" }
+junit-engine = { group = "org.junit.jupiter", name = "junit-jupiter-engine", version.ref = "junit" }
+spring-boot-test = { group = "org.springframework.boot", name = "spring-boot-starter-test" }
+spring-security-test = { group = "org.springframework.security", name = "spring-security-test" }
+
+
+[bundles]
+# Group common dependencies for easy inclusion in a service's build.gradle.kts
+
+# Base dependencies for all services
+base = ["kotlin-reflect", "jackson-kotlin"]
+
+# Dependencies for API and Worker services
+data-jpa = ["spring-boot-data-jpa", "postgres-driver"]
+
+# Dependencies for Worker service
+worker-scraping = ["jsoup", "ktor-client-cio", "ktor-client-content-negotiation", "ktor-serialization-jackson"]
+
+
+[plugins]
+# Plugins are defined here with versions
+spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
+dependency-management = { id = "io.spring.dependency-management", version.ref = "springBoot" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+kotlin-jpa = { id = "org.jetbrains.kotlin.plugin.jpa", version.ref = "kotlin" }

@@ -1,0 +1,13 @@
+dependencies {
+	
+	def ext = rootProject.ext
+
+    // --- CORE SPRING BOOT ---
+    implementation "org.springframework.boot:spring-boot-starter:${ext.springBootVersion}"
+
+    // --- HTTP CLIENT AND SCRAPING ---
+    implementation "org.jsoup:jsoup:1.17.2"
+    implementation "io.ktor:ktor-client-core:${ext.ktorVersion}"
+    implementation "io.ktor:ktor-client-cio:${ext.ktorVersion}"
+    implementation "com.google.code.gson:gson:2.10.1"
+}

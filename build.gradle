@@ -1,0 +1,123 @@
+plugins {
+    id 'java'
+    id 'org.jetbrains.kotlin.jvm' version '1.9.21'	
+    id 'org.springframework.boot' version '3.2.1'
+    id 'jacoco'
+    id 'org.jetbrains.kotlin.plugin.spring' version '1.9.21'
+    id 'org.jetbrains.kotlin.plugin.jpa' version '1.9.21'
+}
+
+ext {
+    // Platform Versions
+    springBootVersion = '3.2.1'
+    kotlinVersion = '1.9.21'
+	
+    // Lib Dependency Versions
+    postgresqlVersion = '42.7.1'
+    liquibaseVersion = '4.25.1'
+    firebaseAdminVersion = '9.2.0'
+	jacksonVersion = '2.15.3'
+	debeziumVersion = '2.6.0.Final'
+	ktorVersion = '2.3.7'
+    cloudSQLJdbcSocketFactoryConnectorJ8Version = '1.15.0'
+    
+    // Core Dependencies
+    springBootWeb = "org.springframework.boot:spring-boot-starter-web"
+    springBootValidation = "org.springframework.boot:spring-boot-starter-validation"
+    springBootSecurity = "org.springframework.boot:spring-boot-starter-security"
+    springBootDataJpa = "org.springframework.boot:spring-boot-starter-data-jpa"
+
+    // Test Dependencies
+    springBootDevtools = "org.springframework.boot:spring-boot-devtools"
+    springBootTest = "org.springframework.boot:spring-boot-starter-test"
+    springSecurityTest = "org.springframework.security:spring-security-test"
+}
+
+def coverageExclusions = [
+    '*.*Application', 
+    '*.config.*',
+    '*.domain.*', 
+    '*.web.dto.*', 
+    '*.exception.*',
+    '*.domain.outbox.OutboxEvent',
+    '*.domain.search.KeywordSearch', 
+    '*.domain.user.AppUser' 
+]
+
+allprojects {
+    repositories {
+        mavenCentral()
+    }
+}
+	
+subprojects {
+    group = 'com.scraper'
+    version = '0.0.1-SNAPSHOT'
+
+	apply plugin: 'java-library'
+    apply plugin: 'org.springframework.boot'
+	
+	def ext = rootProject.ext
+
+	dependencies {
+		// Database and Persistence
+		implementation "${ext.springBootDataJpa}:${ext.springBootVersion}"
+		implementation "org.liquibase:liquibase-core:${ext.liquibaseVersion}"
+        implementation "org.postgresql:postgresql:${ext.postgresqlVersion}"
+        implementation "com.google.cloud:cloud-sql-jdbc-socket-factory-connector-j-8:${ext.cloudSQLJdbcSocketFactoryConnectorJ8Version}"
+
+        // --- Kotlin reflect | jackson ---
+		implementation "org.jetbrains.kotlin:kotlin-reflect:${ext.kotlinVersion}"
+		implementation "com.fasterxml.jackson.module:jackson-module-kotlin:${ext.jacksonVersion}"
+		
+		// Health and Monitoring
+		implementation "org.springframework.boot:spring-boot-starter-aop:${ext.springBootVersion}"
+    
+		// --- Dev tools and Test ---
+		developmentOnly "${ext.springBootDevtools}:${ext.springBootVersion}"
+		testImplementation "${ext.springBootTest}:${ext.springBootVersion}" 
+		testImplementation "org.springframework.security:spring-security-test:6.2.8"
+    }
+	
+    // Centralized task configuration
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.compilerArgs.add('-Xlint:deprecation')
+        sourceCompatibility = '21'
+        targetCompatibility = '21'
+    }
+
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        kotlinOptions {
+            freeCompilerArgs += ['-Xjsr305=warn']
+            jvmTarget = '21'
+        }
+    }
+    
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+        finalizedBy jacocoTestReport
+    }
+
+    tasks.withType(JacocoReport).configureEach {
+        dependsOn tasks.matching { it.name == 'test' }
+        reports {
+            xml.required = true
+            html.required = true
+        }
+    }
+
+    tasks.withType(JacocoCoverageVerification).configureEach {
+        dependsOn jacocoTestReport
+        violationRules {
+            rule {
+                excludes = coverageExclusions
+                limit {
+                    counter = 'INSTRUCTION'
+                    value = 'COVEREDRATIO'
+                    minimum = 0.80
+                }
+            }
+        }
+    }
+}
