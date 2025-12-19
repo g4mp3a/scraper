@@ -6,6 +6,8 @@ import com.scraper.api.domain.outbox.OutboxEventRepository
 import com.scraper.api.domain.search.KeywordSearch
 import com.scraper.api.domain.search.KeywordSearchRepository
 import com.scraper.api.domain.user.AppUser
+import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Page
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -62,7 +64,7 @@ class KeywordService(
             newJobIds.add(savedJob.id)
         }
 
-        // Transaction commits here, ensuring both keyword jobs and events are persisted together.
+        // Transaction commits here, ensuring both keyword search jobs and outbox events are persisted together.
         return newJobIds
     }
 

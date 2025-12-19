@@ -3,6 +3,7 @@ package com.scraper.api.security.config
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
+import com.google.firebase.auth.FirebaseAuth
 import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -39,5 +40,8 @@ class FirebaseConfig(
 
     // This bean is used by the JWT filter to verify tokens
     @Bean
-    fun firebaseAuth() = firebaseApp().auth
+    fun firebaseAuth(firebaseApp: FirebaseApp): FirebaseAuth {
+        // Kotlin quirks for Firebase Admin Java SDK: This explicitly returns the FirebaseAuth object for the initialized FirebaseApp!
+        return FirebaseAuth.getInstance(firebaseApp)
+    }
 }

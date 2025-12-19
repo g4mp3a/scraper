@@ -20,24 +20,37 @@ class PubSubController(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     @PostMapping("/pubsub/push")
-    fun handlePubSubMessage(@RequestBody message: PubSubMessage): ResponseEntity<String> {
+    fun handlePubSubMessage(@RequestBody message: PubSubMessage?): ResponseEntity<String> {
         try {
-            val decodedData = Base64.getDecoder().decode(message.message.data).toString(Charsets.UTF_8)
-            val payload = objectMapper.readValue(decodedData, KeywordJobPayload::class.java)
+            // 1. Guard against null envelope or data
+            val data = message?.message?.data
+            if (data == null) {
+                logger.error("Pub/Sub push received with empty or missing data field")
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Missing message data")
+            }
+
+            // 2. Decoding & Mapping
+            val payload = try {
+                val decodedData = Base64.getDecoder().decode(data).toString(Charsets.UTF_8)
+                objectMapper.readValue(decodedData, KeywordJobPayload::class.java)
+            } catch (e: Exception) {
+                logger.error("Failed to decode/parse Pub/Sub payload: ${e.message}")
+                // Return 400: Pub/Sub will NOT retry this poison message
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid message format: ${e.message}")
+            }
 
             logger.info("Offloading job message for searchId: ${payload.searchId} to @Async pool.")
 
-            // Delegate the long-running task to the @Async thread pool
-            // The main thread continues and returns 200 OK immediately.
+            // 3. Delegate to Service (This is @Async, so it returns immediately)
             scrapingService.processJob(payload)
 
-            // Acknowledge message receipt/offload immediately by returning a 200 Ok response
             return ResponseEntity.ok("Message received and processing offloaded.")
 
         } catch (e: Exception) {
-            // Return 500 only if decoding/offloading fails immediately.
-            logger.error("Failed to decode or offload Pub/Sub message: ${e.message}", e)
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Immediate processing failed. Please retry.")
+            // This catches unexpected system errors (e.g., ThreadPool exhaustion)
+            logger.error("System error during Pub/Sub offload: ${e.message}", e)
+            // Return 500: Pub/Sub WILL retry this as it might be a transient system issue
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal processing failed. Retry requested.")
         }
     }
 }

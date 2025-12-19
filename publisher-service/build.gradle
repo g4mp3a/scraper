@@ -12,3 +12,7 @@ dependencies {
     // --- GOOGLE PUBSUB ---
     implementation "com.google.cloud:spring-cloud-gcp-starter-pubsub:3.5.0"
 }
+
+springBoot {
+    mainClass = 'com.scraper.cdc.PublisherApplicationKt'
+}

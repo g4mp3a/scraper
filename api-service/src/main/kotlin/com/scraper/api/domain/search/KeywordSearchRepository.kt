@@ -2,6 +2,7 @@ package com.scraper.api.domain.search
 
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Page
 import java.util.Optional
 
 interface KeywordSearchRepository : JpaRepository<KeywordSearch, Long> {
@@ -23,7 +24,7 @@ interface KeywordSearchRepository : JpaRepository<KeywordSearch, Long> {
         firebaseUid: String,
         keyword: String,
         pageable: Pageable
-    ): List<KeywordSearch>
+    ): Page<KeywordSearch>
 
     // Custom query to fetch a single search result by ID for the user
     fun findByIdAndUser_FirebaseUid(id: Long, firebaseUid: String): Optional<KeywordSearch>

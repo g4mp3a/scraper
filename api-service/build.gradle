@@ -10,3 +10,7 @@ dependencies {
     implementation "${ext.springBootValidation}:${ext.springBootVersion}"
     implementation "com.google.firebase:firebase-admin:${ext.firebaseAdminVersion}"
 }
+
+springBoot {
+    mainClass = 'com.scraper.api.ApiApplicationKt'
+}

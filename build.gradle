@@ -1,31 +1,33 @@
 plugins {
     id 'java'
-    id 'org.jetbrains.kotlin.jvm' version '1.9.21'	
+    id 'org.jetbrains.kotlin.jvm' version '1.9.22'
     id 'org.springframework.boot' version '3.2.1'
+    id 'io.spring.dependency-management' version '1.1.4'
     id 'jacoco'
-    id 'org.jetbrains.kotlin.plugin.spring' version '1.9.21'
-    id 'org.jetbrains.kotlin.plugin.jpa' version '1.9.21'
+    id 'org.jetbrains.kotlin.plugin.spring' version '1.9.22'
+    id 'org.jetbrains.kotlin.plugin.jpa' version '1.9.22'
 }
 
 ext {
     // Platform Versions
     springBootVersion = '3.2.1'
-    kotlinVersion = '1.9.21'
+    kotlinVersion = '1.9.22'
 	
     // Lib Dependency Versions
     postgresqlVersion = '42.7.1'
-    liquibaseVersion = '4.25.1'
+    liquibaseVersion = '4.33.0'
     firebaseAdminVersion = '9.2.0'
 	jacksonVersion = '2.15.3'
 	debeziumVersion = '2.6.0.Final'
 	ktorVersion = '2.3.7'
-    cloudSQLJdbcSocketFactoryConnectorJ8Version = '1.15.0'
+    cloudSqlFactoryVersion = '1.27.1'
     
     // Core Dependencies
     springBootWeb = "org.springframework.boot:spring-boot-starter-web"
     springBootValidation = "org.springframework.boot:spring-boot-starter-validation"
     springBootSecurity = "org.springframework.boot:spring-boot-starter-security"
     springBootDataJpa = "org.springframework.boot:spring-boot-starter-data-jpa"
+    springBootRetry = "org.springframework.retry:spring-retry"
 
     // Test Dependencies
     springBootDevtools = "org.springframework.boot:spring-boot-devtools"
@@ -54,31 +56,43 @@ subprojects {
     group = 'com.scraper'
     version = '0.0.1-SNAPSHOT'
 
-	apply plugin: 'java-library'
+    apply plugin: 'java'
+    apply plugin: 'org.jetbrains.kotlin.jvm'
+    apply plugin: 'org.jetbrains.kotlin.plugin.spring'
     apply plugin: 'org.springframework.boot'
+    apply plugin: 'io.spring.dependency-management'
 	
 	def ext = rootProject.ext
 
 	dependencies {
-		// Database and Persistence
-		implementation "${ext.springBootDataJpa}:${ext.springBootVersion}"
-		implementation "org.liquibase:liquibase-core:${ext.liquibaseVersion}"
+        implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+
+        implementation "${ext.springBootDataJpa}"
+        implementation "${ext.springBootRetry}"
+        implementation "org.liquibase:liquibase-core:${ext.liquibaseVersion}"
         implementation "org.postgresql:postgresql:${ext.postgresqlVersion}"
-        implementation "com.google.cloud:cloud-sql-jdbc-socket-factory-connector-j-8:${ext.cloudSQLJdbcSocketFactoryConnectorJ8Version}"
+        //implementation "com.google.cloud:cloud-sql-jdbc-socket-factory-connector-j-8:${ext.cloudSQLJdbcSocketFactoryConnectorJ8Version}"
+        implementation "com.google.cloud.sql:postgres-socket-factory:${ext.cloudSqlFactoryVersion}"
 
         // --- Kotlin reflect | jackson ---
-		implementation "org.jetbrains.kotlin:kotlin-reflect:${ext.kotlinVersion}"
-		implementation "com.fasterxml.jackson.module:jackson-module-kotlin:${ext.jacksonVersion}"
-		
-		// Health and Monitoring
-		implementation "org.springframework.boot:spring-boot-starter-aop:${ext.springBootVersion}"
-    
-		// --- Dev tools and Test ---
-		developmentOnly "${ext.springBootDevtools}:${ext.springBootVersion}"
-		testImplementation "${ext.springBootTest}:${ext.springBootVersion}" 
-		testImplementation "org.springframework.security:spring-security-test:6.2.8"
+        implementation "org.jetbrains.kotlin:kotlin-reflect:${ext.kotlinVersion}"
+        implementation "com.fasterxml.jackson.module:jackson-module-kotlin:${ext.jacksonVersion}"
+
+        // Health and Monitoring
+        implementation "org.springframework.boot:spring-boot-starter-aop"
+
+        // --- Dev tools and Test ---
+        developmentOnly "${ext.springBootDevtools}"
+        testImplementation "${ext.springBootTest}"
+        testImplementation "org.springframework.security:spring-security-test"
+        testImplementation "io.ktor:ktor-client-mock-jvm:${ext.ktorVersion}"
+
     }
-	
+
+    bootJar {
+        archiveClassifier = ''
+    }
+
     // Centralized task configuration
     tasks.withType(JavaCompile).configureEach {
         options.encoding = 'UTF-8'
@@ -120,4 +134,12 @@ subprojects {
             }
         }
     }
+}
+
+bootJar {
+    enabled = false
+}
+
+jar {
+    enabled = false
 }

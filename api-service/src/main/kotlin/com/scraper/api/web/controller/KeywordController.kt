@@ -2,7 +2,7 @@ package com.scraper.api.web.controller
 
 import com.scraper.api.domain.user.AppUser
 import com.scraper.api.service.KeywordService
-import com.scraper.api.web.dto.KeywordUploadResponse
+import com.scraper.api.web.dto.*
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -97,7 +97,7 @@ class KeywordController(
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
         @AuthenticationPrincipal user: AppUser
-    ): ResponseEntity<List<KeywordJobDTO>> {
+    ): ResponseEntity<PageResponseDTO<KeywordJobDTO>> {
         if (query.isBlank()) {
             return ResponseEntity.badRequest().build()
         }
