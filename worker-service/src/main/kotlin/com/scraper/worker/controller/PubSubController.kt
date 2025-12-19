@@ -20,12 +20,12 @@ class PubSubController(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     @PostMapping("/pubsub/push")
-    fun handlePubSubMessage(@RequestBody message: PubSubMessage?): ResponseEntity<String> {
+    fun handlePubSubMessage(@RequestBody envelope: PubSubMessage?): ResponseEntity<String> {
         try {
             // 1. Guard against null envelope or data
-            val data = message?.message?.data
+            val data = envelope?.message?.data
             if (data == null) {
-                logger.error("Pub/Sub push received with empty or missing data field")
+                logger.error("Received malformed Pub/Sub message with empty or missing data field")
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Missing message data")
             }
 
@@ -45,7 +45,6 @@ class PubSubController(
             scrapingService.processJob(payload)
 
             return ResponseEntity.ok("Message received and processing offloaded.")
-
         } catch (e: Exception) {
             // This catches unexpected system errors (e.g., ThreadPool exhaustion)
             logger.error("System error during Pub/Sub offload: ${e.message}", e)

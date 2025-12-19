@@ -9,13 +9,14 @@ import com.fasterxml.jackson.databind.JsonNode
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class PubSubMessage(
     // The PubSub message envelope
-    val message: Message
+    val message: Message?,
+    val subscription: String? = null
 ) {
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class Message(
         // The base64 encoded payload (OutboxEvent data)
-        val data: String,
-        val messageId: String,
-        val publishTime: String
+        val data: String?,
+        val messageId: String? = null,
+        val publishTime: String? = null
     )
 }

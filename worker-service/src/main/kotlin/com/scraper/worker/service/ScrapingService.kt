@@ -24,6 +24,12 @@ class ScrapingService(
     @Async
     @Transactional
     fun processJob(payload: KeywordJobPayload) {
+
+        if (payload as Any? == null) {
+            logger.warn("Null payload received in processJob. Skipping.")
+            return
+        }
+
         val jobId = payload.searchId
         val keyword = payload.keyword
 
