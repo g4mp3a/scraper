@@ -123,7 +123,7 @@ class KeywordServiceTest {
             KeywordSearch(id = 1L, user = testUser, keyword = "findme now")
         ))
 
-        given(keywordSearchRepository.findAllByUser_FirebaseUidAndContainingKeywordIgnoreCase("test-user-123", query, pageable))
+        given(keywordSearchRepository.findAllByUser_FirebaseUidAndKeywordContainingIgnoreCase("test-user-123", query, pageable))
             .willReturn(mockPage)
 
         // Act

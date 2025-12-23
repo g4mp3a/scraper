@@ -1,6 +1,8 @@
 package com.scraper.api.domain.search
 
 import jakarta.persistence.*
+import org.hibernate.annotations.JdbcType
+import org.hibernate.dialect.PostgreSQLEnumJdbcType
 import com.scraper.api.domain.user.AppUser
 import java.time.ZonedDateTime
 import java.time.ZoneOffset
@@ -24,6 +26,7 @@ data class KeywordSearch(
     val keyword: String,
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType::class) // This tells Hibernate 6 to handle the PG casting
     @Column(nullable = false)
     val status: SearchStatus = SearchStatus.PENDING,
 

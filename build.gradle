@@ -61,6 +61,7 @@ subprojects {
     apply plugin: 'org.jetbrains.kotlin.plugin.spring'
     apply plugin: 'org.springframework.boot'
     apply plugin: 'io.spring.dependency-management'
+    apply plugin: 'org.jetbrains.kotlin.plugin.jpa'
 	
 	def ext = rootProject.ext
 
@@ -86,6 +87,9 @@ subprojects {
         testImplementation "${ext.springBootTest}"
         testImplementation "org.springframework.security:spring-security-test"
         testImplementation "io.ktor:ktor-client-mock-jvm:${ext.ktorVersion}"
+        // Testcontainers for real Database testing
+        testImplementation("org.testcontainers:junit-jupiter")
+        testImplementation("org.testcontainers:postgresql")
 
     }
 
@@ -107,14 +111,43 @@ subprojects {
             jvmTarget = '21'
         }
     }
-    
-    tasks.withType(Test).configureEach {
+
+    test {
         useJUnitPlatform()
+        filter {
+            // Only run unit tests
+            excludeTestsMatching "*IT"
+            excludeTestsMatching "*IntegrationTest"
+        }
+    }
+
+    task intTest(type: Test) {
+        description = "Runs integration tests."
+        group = "verification"
+
+        useJUnitPlatform()
+        dependsOn test // Unit tests must pass first
+
+        filter {
+            // Only run integration tests
+            includeTestsMatching "*IT"
+            includeTestsMatching "*IntegrationTest"
+            failOnNoMatchingTests = false
+        }
+
+        outputs.upToDateWhen { false }
+    }
+
+    tasks.withType(Test).configureEach {
+        // Both tasks should trigger Jacoco
         finalizedBy jacocoTestReport
     }
 
     tasks.withType(JacocoReport).configureEach {
-        dependsOn tasks.matching { it.name == 'test' }
+        // Wait for all tasks of type Test (unit and intTest) to finish
+        dependsOn tasks.withType(Test)
+        // Tell Jacoco to use the data from every test task that ran
+        executionData tasks.withType(Test)
         reports {
             xml.required = true
             html.required = true

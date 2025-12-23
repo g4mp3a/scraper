@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.io.ResourceLoader
+import org.springframework.context.annotation.Profile
 
 @Configuration
 class FirebaseConfig(
@@ -17,6 +18,7 @@ class FirebaseConfig(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     @Bean
+    @Profile("!test")
     fun firebaseApp(): FirebaseApp {
         try {
             // TODO: For prod, change to have FirebaseOptions.builder() use GoogleCredentials from the IAM service account
@@ -40,6 +42,7 @@ class FirebaseConfig(
 
     // This bean is used by the JWT filter to verify tokens
     @Bean
+    @Profile("!test")
     fun firebaseAuth(firebaseApp: FirebaseApp): FirebaseAuth {
         // Kotlin quirks for Firebase Admin Java SDK: This explicitly returns the FirebaseAuth object for the initialized FirebaseApp!
         return FirebaseAuth.getInstance(firebaseApp)

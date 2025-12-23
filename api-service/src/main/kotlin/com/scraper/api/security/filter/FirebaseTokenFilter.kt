@@ -14,9 +14,11 @@ import org.springframework.web.filter.OncePerRequestFilter
 import org.springframework.security.authentication.AbstractAuthenticationToken
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.authority.SimpleGrantedAuthority
+import org.springframework.context.annotation.Profile
 import java.util.concurrent.ExecutionException
 
 @Component
+@Profile("!test")
 class FirebaseTokenFilter(
     private val firebaseAuth: FirebaseAuth, // Injected from FirebaseConfig
     private val appUserRepository: AppUserRepository // Injected repository
@@ -62,11 +64,15 @@ class FirebaseTokenFilter(
             log.debug("Successfully authenticated Firebase user: ${appUser.email}")
 
         } catch (e: ExecutionException) {
-            // Token verification failed (expired, invalid signature, or revoked)
-            log.warn("Invalid Firebase ID Token: ${e.cause?.message ?: e.message}")
-            // Do not continue the chain; authentication failed. Spring Security handles the error response.
+            // Token verification specifically failed
+            log.warn("Firebase verification failed: ${e.cause?.message}")
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token.")
+            return
         } catch (e: Exception) {
-            log.error("Authentication error: ${e.message}", e)
+            // Something else went wrong (Database down, Firebase down, network issues etc.)
+            log.error("Internal Auth Error: ${e.message}", e)
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal authentication error.")
+            return
         }
 
         // Continue the filter chain
@@ -80,7 +86,7 @@ class FirebaseAuthenticationToken(
     val appUser: AppUser,
     val firebaseToken: FirebaseToken
 ) : AbstractAuthenticationToken(
-    appUser.getAuthorities() // Assumes AppUser has a method to get roles/authorities
+    appUser.getAuthorities()
 ) {
     override fun getCredentials(): Any = firebaseToken
     override fun getPrincipal(): Any = appUser

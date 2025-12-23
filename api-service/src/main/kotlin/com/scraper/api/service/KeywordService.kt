@@ -94,7 +94,7 @@ class KeywordService(
         // Create a Pageable object for pagination
         val pageable: Pageable = PageRequest.of(page, size)
 
-        return keywordSearchRepository.findAllByUser_FirebaseUidAndContainingKeywordIgnoreCase(
+        return keywordSearchRepository.findAllByUser_FirebaseUidAndKeywordContainingIgnoreCase(
             firebaseUid,
             query,
             pageable

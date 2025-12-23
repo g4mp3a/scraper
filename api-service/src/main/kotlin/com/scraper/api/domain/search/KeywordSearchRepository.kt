@@ -20,7 +20,7 @@ interface KeywordSearchRepository : JpaRepository<KeywordSearch, Long> {
         LIMIT ?
         OFFSET ?
      */
-    fun findAllByUser_FirebaseUidAndContainingKeywordIgnoreCase(
+    fun findAllByUser_FirebaseUidAndKeywordContainingIgnoreCase(
         firebaseUid: String,
         keyword: String,
         pageable: Pageable
@@ -28,4 +28,6 @@ interface KeywordSearchRepository : JpaRepository<KeywordSearch, Long> {
 
     // Custom query to fetch a single search result by ID for the user
     fun findByIdAndUser_FirebaseUid(id: Long, firebaseUid: String): Optional<KeywordSearch>
+
+    fun findByUser_FirebaseUid(firebaseUid: String): List<KeywordSearch>
 }

@@ -1,6 +1,8 @@
 package com.scraper.api.domain.outbox
 
 import com.fasterxml.jackson.databind.JsonNode
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import jakarta.persistence.*
 import java.time.ZonedDateTime
 import java.time.ZoneOffset
@@ -25,6 +27,7 @@ data class OutboxEvent(
     val type: String,
 
     // The data payload for the message queue
+    @JdbcTypeCode(SqlTypes.JSON) // "Magic" for Hibernate 6; else it cant map JsonNode to JSONB pg column
     @Column(name = "payload", columnDefinition = "JSONB", nullable = false)
     val payload: JsonNode,
 
