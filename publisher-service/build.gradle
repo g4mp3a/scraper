@@ -11,6 +11,9 @@ dependencies {
     
     // --- GOOGLE PUBSUB ---
     implementation "com.google.cloud:spring-cloud-gcp-starter-pubsub:3.5.0"
+
+    // --- TEST DEPENDENCIES ---
+    testImplementation "org.awaitility:awaitility-kotlin:4.2.0"
 }
 
 springBoot {

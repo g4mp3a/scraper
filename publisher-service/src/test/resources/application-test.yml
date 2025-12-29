@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: publisher-service
+
+  # Database configuration
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    # These URLs/Credentials will be overridden by BaseCdcIntegrationTest at runtime
+    url: jdbc:postgresql://localhost:5432/unused
+    username: test
+    password: test
+
+  # Spring Cloud GCP Configuration
+  cloud:
+    gcp:
+      project-id: test-project
+      # The emulator-host will be injected by the BaseCdcIntegrationTest
+      pubsub:
+        enabled: true
+      sql:
+        enabled: false # Disable the Cloud SQL auto-configuration for tests
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    enabled: true
+
+
+# Your custom properties defined in CdcPublisherService.kt
+gcp:
+  pubsub:
+    scraper-topic-id: scraper-topic
+
+# Logging configuration to help debug CDC events during tests
+logging:
+  level:
+    root: INFO
+    com.scraper.cdc: DEBUG
+    io.debezium: WARN
+    # Useful to see the exact JSON Debezium is producing
+    io.debezium.connector.postgresql: INFO
+
+cdc:
+  publisher:
+    enabled: false # Prevents CommandLineRunner from firing during context load

@@ -10,6 +10,8 @@ import org.springframework.boot.CommandLineRunner
 import org.springframework.stereotype.Component
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.env.Environment
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -22,7 +24,8 @@ import jakarta.annotation.PreDestroy
 open class CdcPublisherService(
     @Value("\${gcp.pubsub.scraper-topic-id}") private val scraperTopicId: String,
     private val env: Environment,
-    private val objectMapper: ObjectMapper // Use the Spring-managed ObjectMapper
+    private val objectMapper: ObjectMapper, // Use the Spring-managed ObjectMapper
+    @Autowired(required = false) private var injectedPublisher: Publisher? = null,
 ) : CommandLineRunner {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -31,16 +34,31 @@ open class CdcPublisherService(
     private lateinit var publisher: Publisher
 
     // Debezium configuration constants
+    private val DB_SERVER_NAME = "scraper-db-server"
     private val TARGET_TABLE = "public.outbox_event"
-    private val TOPIC_PREFIX = "scraper-db-server"
+
     // TODO: Slot name configured in cdc_setup.sql and used here should match
     private val REPLICATION_SLOT_NAME = "debezium_slot_outbox"
 
     override fun run(vararg args: String?) {
+        // Simple "Skip" logic for tests
+        val isEnabled = env.getProperty("cdc.publisher.enabled", Boolean::class.java, true)
+        if (!isEnabled) {
+            log.info("CDC Publisher is disabled via properties. Skipping auto-start.")
+            return
+        }
+
+        start(*args)
+    }
+
+    fun start(vararg args: String?) {
         try {
             // 1. Initialize Pub/Sub Publisher
-            val topicName = "projects/${System.getenv("GCP_PROJECT_ID")}/topics/$scraperTopicId"
-            publisher = createPublisher(topicName)
+            val projectId = env.getProperty("spring.cloud.gcp.project-id")
+                ?: throw IllegalStateException("spring.cloud.gcp.project-id must be set")
+            val topicName = "projects/$projectId/topics/$scraperTopicId"
+
+            this.publisher = injectedPublisher ?: createPublisher(topicName)
             log.info("CDC Publisher initialized for topic: $topicName")
 
             // 2. Build Debezium Configuration
@@ -70,63 +88,134 @@ open class CdcPublisherService(
         return Publisher.newBuilder(topicName).build()
     }
 
+//    private fun handleChangeEvent(changeEvent: ChangeEvent<String, String>) {
+//
+//        log.info("DEBUG: Received event for destination: ${changeEvent.destination()}")
+//        log.info("DEBUG: Event value: ${changeEvent.value()}")
+//        log.info("DEBUG: Event op: ${changeEvent.key()}")
+//
+//
+//        // The 'value' contains the full change event from the DB.
+//        val jsonPayload = changeEvent.value()
+//        if (changeEvent.destination().endsWith(TARGET_TABLE) && jsonPayload != null) {
+//            try {
+//                // Parse the Debezium JSON structure to extract the specific 'payload' column from the database row.
+//                // The structure is typically: { "before": null, "after": { "id": 1, "payload": "{...}" }, "source": {...} }
+//                val gson = Gson()
+//                val debeziumJson = gson.fromJson(jsonPayload, JsonObject::class.java)
+//
+//                // Debezium sends events for schema changes, heartbeats, and data changes.
+//                // We only care about INSERTs on the outbox_event table.
+//                // Check Debezium 'op' field: 'c' stands for Create (Insert)
+//                val op = debeziumJson.get("op")?.asString
+//                if (op != "c") return
+//
+//                // Extract the value of the 'payload' column from the 'after' state.
+//                val after = debeziumJson.getAsJsonObject("after")
+//                val eventPayloadJsonString = after.getAsJsonPrimitive("payload")?.asString
+//                    ?: throw IllegalStateException("Outbox event is missing 'payload' column.")
+//
+//                // A. Publish the extracted payload to Pub/Sub
+//                val message = com.google.pubsub.v1.PubsubMessage.newBuilder()
+//                    .setData(ByteString.copyFromUtf8(eventPayloadJsonString)) // Send only the original API service payload
+//                    .putAttributes("aggregate-id", after.getAsJsonPrimitive("aggregate_id").asString)
+//                    .putAttributes("event-type", after.getAsJsonPrimitive("type").asString)
+//                    .build()
+//
+//                // Publish synchronously to ensure backpressure and reliable delivery tracking
+//                publisher.publish(message).get()
+//                log.debug("Published event ID: ${after.getAsJsonPrimitive("id").asLong}")
+//
+//            } catch (e: Exception) {
+//                log.error("Failed to parse or publish event to Pub/Sub. Stopping engine to prevent message loss: ${e.message}", e)
+//                // Critical: Stop the engine. Debezium will resume from the last known offset on restart.
+//                engine.close()
+//            }
+//        }
+//    }
+
     private fun handleChangeEvent(changeEvent: ChangeEvent<String, String>) {
-        // The 'value' contains the full change event from the DB.
+        log.debug("DEBUG: Event value: ${changeEvent.value()}")
+        log.debug("DEBUG: Received event for destination: ${changeEvent.destination()}")
+
         val jsonPayload = changeEvent.value()
-        if (changeEvent.destination().endsWith(TARGET_TABLE) && jsonPayload != null) {
-            try {
-                // Parse the Debezium JSON structure to extract the specific 'payload' column from the database row.
-                // The structure is typically: { "before": null, "after": { "id": 1, "payload": "{...}" }, "source": {...} }
-                val gson = Gson()
-                val debeziumJson = gson.fromJson(jsonPayload, JsonObject::class.java)
+        val destination = changeEvent.destination()
 
-                // Debezium sends events for schema changes, heartbeats, and data changes.
-                // We only care about INSERTs on the outbox_event table.
-                // Check Debezium 'op' field: 'c' stands for Create (Insert)
-                val op = debeziumJson.get("op")?.asString
-                if (op != "c") return
+        // 1. Validate destination and payload existence
+        jsonPayload?.takeIf { destination.endsWith(TARGET_TABLE) } ?: run {
+            log.trace("Discarding noise: Event for $destination is not our target.")
+            return
+        }
 
-                // Extract the value of the 'payload' column from the 'after' state.
-                val after = debeziumJson.getAsJsonObject("after")
-                val eventPayloadJsonString = after.getAsJsonPrimitive("payload")?.asString
-                    ?: throw IllegalStateException("Outbox event is missing 'payload' column.")
+        try {
+            val root = Gson().fromJson(jsonPayload, JsonObject::class.java)
 
-                // A. Publish the extracted payload to Pub/Sub
-                val message = com.google.pubsub.v1.PubsubMessage.newBuilder()
-                    .setData(ByteString.copyFromUtf8(eventPayloadJsonString)) // Send only the original API service payload
-                    .putAttributes("aggregate-id", after.getAsJsonPrimitive("aggregate_id").asString)
-                    .putAttributes("event-type", after.getAsJsonPrimitive("type").asString)
-                    .build()
-
-                // Publish synchronously to ensure backpressure and reliable delivery tracking
-                publisher.publish(message).get()
-                log.debug("Published event ID: ${after.getAsJsonPrimitive("id").asLong}")
-
-            } catch (e: Exception) {
-                log.error("Failed to parse or publish event to Pub/Sub. Stopping engine to prevent message loss: ${e.message}", e)
-                // Critical: Stop the engine. Debezium will resume from the last known offset on restart.
-                engine.close()
+            // 2. Validate 'op' (Insert only)
+            val op = root.get("op")?.asString
+            if (op != "c") {
+                log.debug("Skipping non-insert ($op) for $destination")
+                return
             }
+
+            // 3. Validate 'after' block
+            val after = root.getAsJsonObject("after") ?: run {
+                log.error("Malformed CDC event: 'after' block missing for $destination")
+                return
+            }
+
+            // 4. Validate and Extract Payload
+            val eventPayload = after.get("payload")?.asString ?: run {
+                log.error("Critical: 'payload' column missing in DB event for $destination")
+                return
+            }
+
+            val message = com.google.pubsub.v1.PubsubMessage.newBuilder()
+                .setData(ByteString.copyFromUtf8(eventPayload))
+                .putAttributes("aggregate-id", after.get("aggregate_id")?.asString ?: "unknown")
+                .putAttributes("event-type", after.get("type")?.asString ?: "unknown")
+                .build()
+
+            publisher.publish(message).get()
+            log.info("Published CDC Event: ID=${after.get("id")}")
+
+        } catch (e: Exception) {
+            log.error("Failed to parse or publish event to Pub/Sub. Stopping engine to prevent message loss: ${e.message}", e)
+            /*
+             TODO: Revisit if needed in a future version.
+             For the beta version, lets rely on user retying their search attempts.
+             In a future version, we can implement the simple strategy of writing the failed message entry again to outbox_event table
+             in case of data issues (specifically messages parsing issues related to debezium)
+             and not code/logic issues. Code issues would be logged as critical failures only.
+             If this idea of writing to the outbox_event table directly doesnt feel good,
+             we can write the entry back to the keyword_search table instead.
+             */
+
         }
     }
 
     private fun createDebeziumConfig(): Configuration {
         // Helper function to extract DB connection properties from Spring configuration
-        val dbUrl = env.getProperty("spring.datasource.url", "")
-        val dbHost = dbUrl.substringAfter("://").substringBefore(":")
-        val dbPort = dbUrl.substringAfterLast(":").substringBefore("/")
-        val dbName = dbUrl.substringAfterLast("/")
 
-        return Configuration.create()
+        val dbUrl = env.getProperty("spring.datasource.url", "")
+
+        val afterScheme = dbUrl.substringAfter("jdbc:postgresql://")
+        val hostPort = afterScheme.substringBefore("/")
+        val dbHost = hostPort.substringBefore(":")
+        val dbPort = hostPort.substringAfter(":", "5432")
+        val dbName = afterScheme.substringAfter("/").substringBefore("?")
+
+        var configBuilder = Configuration.create()
             // General Settings
             .with("connector.class", "io.debezium.connector.postgresql.PostgresConnector")
             .with("name", "outbox-connector")
+            .with("schemas.enable", "false")  // Removes the "schema" block
+            .with("converter.schemas.enable", "false") // Ensures the converter respects it
 
             // Offset Storage (Required for state management in Cloud Run)
-            .with("offset.storage", "org.apache.kafka.connect.storage.FileOffsetBackingStore")
+//            .with("offset.storage", "org.apache.kafka.connect.storage.FileOffsetBackingStore")
             // TODO: Ensure that this is set up as a writable path in Cloud Run
-            .with("offset.storage.file.filename", "/tmp/offsets.dat")
-            .with("offset.flush.interval.ms", 5000)
+//            .with("offset.storage.file.filename", "/tmp/offsets.dat")
+//            .with("offset.flush.interval.ms", 5000)
 
             // Database Connection Settings
             .with("database.hostname", dbHost)
@@ -134,7 +223,7 @@ open class CdcPublisherService(
             .with("database.user", env.getProperty("spring.datasource.username"))
             .with("database.password", env.getProperty("spring.datasource.password"))
             .with("database.dbname", dbName)
-            .with("database.server.name", TOPIC_PREFIX)
+            .with("topic.prefix", DB_SERVER_NAME)
 
             // PostgreSQL-Specific Settings
             .with("plugin.name", "pgoutput")
@@ -146,7 +235,19 @@ open class CdcPublisherService(
 
             // Filtering: Only monitor the outbox_event table
             .with("table.include.list", TARGET_TABLE)
-            .build()
+
+        configBuilder = if (env.activeProfiles.contains("test")) {
+                    configBuilder
+                        .with("offset.storage", "org.apache.kafka.connect.storage.MemoryOffsetBackingStore")
+                } else {
+                    configBuilder
+                        .with("offset.storage", "org.apache.kafka.connect.storage.FileOffsetBackingStore")
+                        // TODO: This must be set up as a writable path in Cloud Run
+                        .with("offset.storage.file.filename", "/tmp/offsets.dat")
+                        .with("offset.flush.interval.ms", "5000")
+                }
+
+        return configBuilder.build()
     }
 
     @PreDestroy

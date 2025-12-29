@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: publisher-service
+
+  datasource:
+    # On Cloud Run, these are usually provided via Environment Variables
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  cloud:
+    gcp:
+      # Real GCP Project ID
+      project-id: ${GCP_PROJECT_ID}
+      pubsub:
+        enabled: true
+
+gcp:
+  pubsub:
+    # Matches your scraper-topic name in GCP
+    scraper-topic-id: scraper-topic
+
+logging:
+  level:
+    root: INFO
+    com.scraper.cdc: INFO
+    # Debezium is chatty; keep it at WARN in prod unless troubleshooting
+    io.debezium: WARN
