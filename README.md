@@ -87,11 +87,12 @@ Scraping worker design uses Cloud Run and Pub/Sub subscriptions to enable a cons
 Workers run the potentially time heavy scraping jobs asynchronously using Spring Boot's `@Async` freeing the main 
 thread to handle events from queue.
 
+#### Drawbacks of sync strategy
 In a synchronous design, the Cloud Run instance that receives the push request must stay alive and busy 
 for the entire duration of the scraping job (which includes network requests, I/O, and the randomized delay of 1-3 seconds).
 
 * **High Latency:** The HTTP request from Pub/Sub takes several seconds to complete, tying up the Cloud Run instance.
-* **Increased Cost:** You pay for the CPU time, including the time spent waiting during the randomized delays (`delay(delayTime)`).
+* **Increased Cost:** We pay for the CPU time, including the time spent waiting during the randomized delays (`delay(delayTime)`).
 * **Concurrency Blockage:** The instance's concurrent request capacity is blocked by one long-running request, potentially throttling the message processing rate.
 
 ### Anti-Rate-Limit Strategy

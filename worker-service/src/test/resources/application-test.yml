@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: worker-service
+
+  # Database configuration
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    # These URLs/Credentials will be overridden by BaseWorkerIntegrationTest at runtime
+    url: jdbc:postgresql://localhost:5432/unused
+    username: test
+    password: test
+
+  # Spring Cloud GCP Configuration
+  cloud:
+    gcp:
+      project-id: test-project
+      sql:
+        enabled: false # Disable the Cloud SQL auto-configuration for tests
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    enabled: true
+
+# Logging configuration to help debug worker service during tests
+logging:
+  level:
+    root: INFO
+    com.scraper.worker: DEBUG

@@ -1,3 +1,26 @@
+spring:
+  application:
+    name: worker-service
+
+  datasource:
+    # On Cloud Run, these are usually provided via Environment Variables
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  cloud:
+    gcp:
+      # Real GCP Project ID
+      project-id: ${GCP_PROJECT_ID}
+      pubsub:
+        enabled: true
+
+gcp:
+  pubsub:
+    # Matches your scraper-topic name in GCP
+    scraper-topic-id: scraper-topic
+
 ktor:
   client:
     # Safe defaults for scraping

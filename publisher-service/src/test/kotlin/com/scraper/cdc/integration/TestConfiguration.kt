@@ -1,11 +1,11 @@
 package com.scraper.cdc.integration
 
+import com.google.api.gax.core.CredentialsProvider
+import com.google.auth.Credentials
 import com.google.cloud.pubsub.v1.Publisher
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
-import com.google.api.gax.core.CredentialsProvider
-import com.google.auth.Credentials
 import org.mockito.Mockito.*
 
 @TestConfiguration

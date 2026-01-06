@@ -17,6 +17,7 @@ spring:
       # The emulator-host will be injected by the BaseCdcIntegrationTest
       pubsub:
         enabled: true
+        emulator-host: localhost:8085
       sql:
         enabled: false # Disable the Cloud SQL auto-configuration for tests
 

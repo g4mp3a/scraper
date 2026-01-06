@@ -1,27 +1,25 @@
-package com.scraper.cdc.service
+package com.scraper.cdc.integration
 
-import com.scraper.cdc.integration.BaseCdcIntegrationTest
 import com.google.cloud.pubsub.v1.Publisher
 import com.google.pubsub.v1.PubsubMessage
+import com.scraper.cdc.service.CdcPublisherService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentCaptor
 import org.mockito.Mockito.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.mock.mockito.SpyBean
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
 import org.awaitility.Awaitility.await
+import org.springframework.context.annotation.Import
 import java.time.Duration
-import java.util.*
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Import(TestConfig::class)
+@DisabledIfSystemProperty(named = "runEmulatorTests", matches = "true")
 class CdcPublisherServiceIT : BaseCdcIntegrationTest() {
-
-    @Autowired
-    private lateinit var jdbcTemplate: JdbcTemplate
 
     @Autowired
     private lateinit var mockPublisher: Publisher
@@ -48,22 +46,10 @@ class CdcPublisherServiceIT : BaseCdcIntegrationTest() {
         )
 
         // 6. Assert: Verify the mock publisher received the data
-        val messageCaptor = ArgumentCaptor.forClass(com.google.pubsub.v1.PubsubMessage::class.java)
+        val messageCaptor = ArgumentCaptor.forClass(PubsubMessage::class.java)
         await().atMost(Duration.ofSeconds(10)).untilAsserted {
             verify(mockPublisher, atLeastOnce()).publish(messageCaptor.capture())
             assertEquals(payload, messageCaptor.value.data.toStringUtf8())
         }
-    }
-
-    private fun waitForDebezium() {
-        await()
-            .atMost(Duration.ofSeconds(7))
-            .until {
-                val count = jdbcTemplate.queryForObject(
-                    "SELECT count(*) FROM pg_replication_slots WHERE slot_name = 'debezium_slot_outbox'",
-                    Int::class.java
-                )
-                count != null && count > 0
-            }
     }
 }

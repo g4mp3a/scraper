@@ -1,3 +1,10 @@
+dependencyManagement {
+    imports {
+        // This is the "Source of Truth" for all Google Cloud/gRPC versions
+        mavenBom "com.google.cloud:spring-cloud-gcp-dependencies:5.0.1"
+    }
+}
+
 dependencies {
 
 	def ext = rootProject.ext
@@ -10,10 +17,20 @@ dependencies {
     implementation "io.debezium:debezium-connector-postgres:${ext.debeziumVersion}"
     
     // --- GOOGLE PUBSUB ---
-    implementation "com.google.cloud:spring-cloud-gcp-starter-pubsub:3.5.0"
+    implementation "com.google.cloud:spring-cloud-gcp-starter-pubsub"
+
+    // --- GOOGLE API EXTENSIONS ---
+    implementation 'com.google.api:gax'
+    implementation 'com.google.api:gax-grpc'
 
     // --- TEST DEPENDENCIES ---
+    testImplementation "io.grpc:grpc-netty-shaded"
     testImplementation "org.awaitility:awaitility-kotlin:4.2.0"
+}
+
+tasks.withType(Test).configureEach {
+    // Forward the system property from the command line to the test runner
+    systemProperty "runEmulatorTests", System.getProperty("runEmulatorTests")
 }
 
 springBoot {

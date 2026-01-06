@@ -88,52 +88,6 @@ open class CdcPublisherService(
         return Publisher.newBuilder(topicName).build()
     }
 
-//    private fun handleChangeEvent(changeEvent: ChangeEvent<String, String>) {
-//
-//        log.info("DEBUG: Received event for destination: ${changeEvent.destination()}")
-//        log.info("DEBUG: Event value: ${changeEvent.value()}")
-//        log.info("DEBUG: Event op: ${changeEvent.key()}")
-//
-//
-//        // The 'value' contains the full change event from the DB.
-//        val jsonPayload = changeEvent.value()
-//        if (changeEvent.destination().endsWith(TARGET_TABLE) && jsonPayload != null) {
-//            try {
-//                // Parse the Debezium JSON structure to extract the specific 'payload' column from the database row.
-//                // The structure is typically: { "before": null, "after": { "id": 1, "payload": "{...}" }, "source": {...} }
-//                val gson = Gson()
-//                val debeziumJson = gson.fromJson(jsonPayload, JsonObject::class.java)
-//
-//                // Debezium sends events for schema changes, heartbeats, and data changes.
-//                // We only care about INSERTs on the outbox_event table.
-//                // Check Debezium 'op' field: 'c' stands for Create (Insert)
-//                val op = debeziumJson.get("op")?.asString
-//                if (op != "c") return
-//
-//                // Extract the value of the 'payload' column from the 'after' state.
-//                val after = debeziumJson.getAsJsonObject("after")
-//                val eventPayloadJsonString = after.getAsJsonPrimitive("payload")?.asString
-//                    ?: throw IllegalStateException("Outbox event is missing 'payload' column.")
-//
-//                // A. Publish the extracted payload to Pub/Sub
-//                val message = com.google.pubsub.v1.PubsubMessage.newBuilder()
-//                    .setData(ByteString.copyFromUtf8(eventPayloadJsonString)) // Send only the original API service payload
-//                    .putAttributes("aggregate-id", after.getAsJsonPrimitive("aggregate_id").asString)
-//                    .putAttributes("event-type", after.getAsJsonPrimitive("type").asString)
-//                    .build()
-//
-//                // Publish synchronously to ensure backpressure and reliable delivery tracking
-//                publisher.publish(message).get()
-//                log.debug("Published event ID: ${after.getAsJsonPrimitive("id").asLong}")
-//
-//            } catch (e: Exception) {
-//                log.error("Failed to parse or publish event to Pub/Sub. Stopping engine to prevent message loss: ${e.message}", e)
-//                // Critical: Stop the engine. Debezium will resume from the last known offset on restart.
-//                engine.close()
-//            }
-//        }
-//    }
-
     private fun handleChangeEvent(changeEvent: ChangeEvent<String, String>) {
         log.debug("DEBUG: Event value: ${changeEvent.value()}")
         log.debug("DEBUG: Received event for destination: ${changeEvent.destination()}")
