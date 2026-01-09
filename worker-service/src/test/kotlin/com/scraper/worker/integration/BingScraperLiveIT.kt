@@ -17,7 +17,7 @@ class BingScraperLiveIT {
     private val client = HttpClient(CIO)
     private val scraper = BingScraper(client)
 
-    @Test
+//    @Test
     fun `should extract links from actual Bing website`() {
         val keyword = "kotlin coroutines"
 

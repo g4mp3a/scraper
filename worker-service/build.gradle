@@ -15,9 +15,17 @@ dependencies {
     implementation "io.ktor:ktor-client-core:${ext.ktorVersion}"
     implementation "io.ktor:ktor-client-cio:${ext.ktorVersion}"
     implementation "com.google.code.gson:gson:2.10.1"
+    implementation "com.microsoft.playwright:playwright:1.57.0"
 
     // --- TEST DEPENDENCIES ---
     testImplementation "org.awaitility:awaitility-kotlin:4.2.0"
+}
+
+// --- Playwright CLI Task ---
+// To download required browser binaries, run './gradlew playwright --args="install --with-deps chromium"'
+tasks.register('playwright', JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    mainClass = 'com.microsoft.playwright.CLI'
 }
 
 tasks.withType(Test).configureEach {
