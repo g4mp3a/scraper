@@ -1,8 +1,8 @@
 package com.scraper.worker.integration
 
 import com.scraper.worker.dto.PubSubMessage
-import com.scraper.worker.service.BingScraper
-import com.scraper.worker.service.ScrapeResult
+import com.scraper.worker.service.PlaywrightBingScraper
+import com.scraper.worker.dto.ScrapeResult
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty
@@ -24,7 +24,7 @@ class WorkerLogicIT : BaseWorkerIntegrationTest() {
     private lateinit var restTemplate: TestRestTemplate
 
     @MockBean
-    private lateinit var bingScraper: BingScraper
+    private lateinit var bingScraper: PlaywrightBingScraper
 
     @Test
     fun `should process job from pending to completed via push endpoint`() {

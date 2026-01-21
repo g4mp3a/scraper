@@ -1,7 +1,5 @@
 package com.scraper.worker.dto
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-
 /**
  * The actual content of the OutboxEvent payload (sent via debezium - the CDC connector).
  */

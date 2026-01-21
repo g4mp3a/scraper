@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
-class BingScraperTest {
+class SimpleKtorJsoupScraperTest {
     @Test
     fun `scrape should return empty results instead of crashing when HTML is unexpected`() = runBlocking {
         // Arrange: Mock a successful 200 OK but with "Garbage" HTML
@@ -22,7 +22,7 @@ class BingScraperTest {
             )
         }
         val client = HttpClient(mockEngine)
-        val scraper = BingScraper(client)
+        val scraper = SimpleKtorJsoupScraper(client)
 
         // Act
         val result = scraper.scrape("test query")
@@ -40,7 +40,7 @@ class BingScraperTest {
             throw HttpRequestTimeoutException("Timeout", null)
         }
         val client = HttpClient(mockEngine)
-        val scraper = BingScraper(client)
+        val scraper = SimpleKtorJsoupScraper(client)
 
         // Act & Assert
         assertThrows<HttpRequestTimeoutException> {

@@ -1,9 +1,13 @@
 package com.scraper.worker.service
 
+import com.scraper.worker.domain.search.KeywordSearch
 import com.scraper.worker.domain.search.KeywordSearchRepository
 import com.scraper.worker.domain.search.SearchStatus
 import com.scraper.worker.dto.KeywordJobPayload
+import com.scraper.worker.dto.ScrapeResult
 import org.slf4j.LoggerFactory
+import org.springframework.retry.annotation.Retryable
+import org.springframework.retry.annotation.Backoff
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.ZonedDateTime
@@ -12,8 +16,8 @@ import org.springframework.scheduling.annotation.Async // CRITICAL
 
 @Service
 class ScrapingService(
-    private val keywordSearchRepository: KeywordSearchRepository,
-    private val bingScraper: BingScraper
+    private val jobPersistenceService: JobPersistenceService,
+    private val bingScraper: PlaywrightBingScraper
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -22,13 +26,7 @@ class ScrapingService(
      * The final outcome is ONLY recorded in the database.
      */
     @Async
-    @Transactional
     fun processJob(payload: KeywordJobPayload) {
-
-        if (payload as Any? == null) {
-            logger.warn("Null payload received in processJob. Skipping.")
-            return
-        }
 
         val jobId = payload.searchId
         val keyword = payload.keyword
@@ -38,47 +36,36 @@ class ScrapingService(
             return
         }
 
-        val job = keywordSearchRepository.findById(jobId).orElse(null)
+        // 1. Mark job as PROCESSING (DB Txn 1) and verify existence
+        val job = jobPersistenceService.updateStatus(jobId, SearchStatus.PROCESSING)
         if (job == null) {
             logger.warn("Job ID $jobId not found. Skipping.")
             return
         }
 
-        // 1. Mark job as PROCESSING (Synchronous write before scraping)
-        val jobToUpdate = job.copy(status = SearchStatus.PROCESSING)
-        try {
-            keywordSearchRepository.save(jobToUpdate)
-        } catch (e: Exception) {
-            logger.error("Failed to set initial PROCESSING status for job $jobId", e)
-            throw e // Re-throw to ensure the @Async/Transactional handles it
-        }
-
         try {
             logger.info("Starting scrape for Job ID: $jobId, Keyword: ${payload.keyword}")
 
-            // 2. Perform the Scraping (internally it retries via @Retryable)
-            val result = bingScraper.scrape(payload.keyword)
+            // 2. Perform the scraping (Long-running I/O, NO Transaction here)
+            val result = bingScraper.scrape(keyword)
 
-            // 3. Mark job as COMPLETED and save results
-            val completedJob = jobToUpdate.copy(
-                status = SearchStatus.COMPLETED,
-                totalLinks = result.linkCount,
-                totalAds = result.adCount,
-                fullHtml = result.fullHtml,
-                completedAt = ZonedDateTime.now(ZoneOffset.UTC)
-            )
-            keywordSearchRepository.save(completedJob)
-            logger.info("Job ID $jobId completed.")
+            // 3. Record outcome, mark job as COMPLETED (DB Txn 2)
+            // Nested try-catch to differentiate DB save errors from Scraper errors
+            try {
+                jobPersistenceService.finalizeJob(jobId, result)
+            } catch (dbEx: Exception) {
+                logger.error("SCRAPE SUCCESS BUT SAVE FAILED for Job ID $jobId: ${dbEx.message}")
+                throw dbEx // Bubble up to mark as FAILED
+            }
 
         } catch (e: Exception) {
             // 4. Handle final failure after all in-app retries are exhausted.
-            logger.error("Permanent scraping failure for Job ID $jobId: ${e.message}")
-
-            val failedJob = jobToUpdate.copy(
-                status = SearchStatus.FAILED,
-                completedAt = ZonedDateTime.now(ZoneOffset.UTC)
-            )
-            keywordSearchRepository.save(failedJob)
+            logger.error("Permanent failure for Job ID $jobId: ${e.message}")
+            try {
+                jobPersistenceService.updateStatus(jobId, SearchStatus.FAILED)
+            } catch (dbEx: Exception) {
+                logger.error("CRITICAL: Could not set FAILED status for $jobId", dbEx)
+            }
 
             // NOTE: The exception is logged by the AsyncUncaughtExceptionHandler,
             // but it CANNOT be propagated back to the controller or Pub/Sub.

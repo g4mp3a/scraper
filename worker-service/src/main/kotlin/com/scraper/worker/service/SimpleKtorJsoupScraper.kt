@@ -17,15 +17,11 @@ import org.springframework.retry.annotation.Backoff
 import org.springframework.retry.annotation.Recover
 import org.springframework.web.client.ResourceAccessException
 import com.scraper.worker.service.exception.PermanentScrapingFailureException
-
-data class ScrapeResult(
-    val linkCount: Int,
-    val adCount: Int,
-    val fullHtml: String
-)
+import com.scraper.worker.dto.ScrapeResult
+import com.scraper.worker.service.exception.BingTransientException
 
 @Component
-class BingScraper(private val httpClient: HttpClient) {
+class SimpleKtorJsoupScraper(private val httpClient: HttpClient) {
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -34,9 +30,6 @@ class BingScraper(private val httpClient: HttpClient) {
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.1 Safari/605.1.15",
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
     )
-
-    // Custom exception to signal transient errors that should trigger a retry
-    class BingTransientException(message: String) : RuntimeException(message)
 
     @Retryable(
         value = [ResourceAccessException::class, BingTransientException::class],
