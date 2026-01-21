@@ -86,7 +86,7 @@ class PlaywrightBingScraper(
     fun recoverScrape(e: Exception, keyword: String): ScrapeResult {
         logger.error("PERMANENT FAILURE: All retries failed for keyword: $keyword. Reason: ${e.message}")
         // Throw custom exception to signal the permanent failure status
-        throw PermanentScrapingFailureException("Failed to scrape after 3 attempts: $keyword", e)
+        throw PermanentScrapingFailureException("Failed to scrape after 2 attempts: $keyword", e)
     }
 
     /**
