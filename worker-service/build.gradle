@@ -30,7 +30,7 @@ tasks.register('playwright', JavaExec) {
 
 tasks.withType(Test).configureEach {
     // Forward the system property from the command line to the test runner
-    systemProperty "runLiveScraperTest", System.getProperty("runLiveScraperTest")
+    systemProperty "runRealBingSearchIT", System.getProperty("runRealBingSearchIT")
 }
 
 springBoot {

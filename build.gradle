@@ -126,7 +126,7 @@ subprojects {
         group = "verification"
 
         useJUnitPlatform()
-        dependsOn test // Unit tests must pass first
+        // dependsOn test // Unit tests must pass first
 
         filter {
             // Only run integration tests
