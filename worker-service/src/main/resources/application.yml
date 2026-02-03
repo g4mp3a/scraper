@@ -1,4 +1,9 @@
+# production ENV is set by default
+SCRAPER_ENV: ${SCRAPER_APP_ENV:prod}
+
 spring:
+  profiles:
+    active: ${SCRAPER_ENV}
   application:
     name: worker-service
 
@@ -27,3 +32,13 @@ ktor:
     connect-timeout-ms: 10000 # 10 seconds to connect
     request-timeout-ms: 30000 # 60 seconds for the entire request/response
     max-connections: 100
+
+scraper:
+  patchright:
+    # Production path (Linux/Docker structure)
+    path: ${user.dir}/bin/patchright/chrome
+  headless: true
+  gpu-mode: "--disable-gpu"
+  profile-base-path: ${user.dir}/playwright-profile
+  bing:
+    handle-consent: true # Generally needed in cloud IPs

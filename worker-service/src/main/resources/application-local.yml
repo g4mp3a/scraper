@@ -1,0 +1,5 @@
+scraper:
+  headless: false
+  gpu-mode: "--use-gl=desktop"
+  bing:
+    handle-consent: true # Turn off locally as it's annoying

@@ -21,6 +21,19 @@ dependencies {
     testImplementation "org.awaitility:awaitility-kotlin:4.2.0"
 }
 
+tasks.withType(Test).configureEach {
+    // Forward the system property from the command line to the test runner
+    systemProperty "runRealBingSearchIT", System.getProperty("runRealBingSearchIT")
+    systemProperty "runStealthCheck", System.getProperty("runStealthCheck")
+
+    // STOP the automatic downloads
+    environment "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1"
+}
+
+springBoot {
+    mainClass = 'com.scraper.worker.WorkerApplicationKt'
+}
+
 // --- Playwright CLI Task ---
 // To download required browser binaries, run './gradlew playwright --args="install --with-deps chromium"'
 tasks.register('playwright', JavaExec) {
@@ -28,11 +41,117 @@ tasks.register('playwright', JavaExec) {
     mainClass = 'com.microsoft.playwright.CLI'
 }
 
-tasks.withType(Test).configureEach {
-    // Forward the system property from the command line to the test runner
-    systemProperty "runRealBingSearchIT", System.getProperty("runRealBingSearchIT")
+import java.nio.file.Files
+import java.nio.file.Paths
+import org.apache.tools.ant.taskdefs.condition.Os
+
+// --- 2. Preparatory Playwright Task (Install + Uninstall) ---
+tasks.register('prepPlaywright') {
+    group = 'infrastructure'
+    description = 'Prepares folder structure and system deps, then clears standard binaries'
+
+    doLast {
+        println "Installing Chromium with dependencies..."
+        runPlaywrightCommand(['install', '--with-deps', 'chromium'])
+
+        println "Uninstalling standard binaries to make room for Patchright..."
+        runPlaywrightCommand(['uninstall', '--all'])
+
+        println "Folders and dependencies prepped."
+    }
 }
 
-springBoot {
-    mainClass = 'com.scraper.worker.WorkerApplicationKt'
+// --- Patchright Setup Task ---
+tasks.register('setupPatchright') {
+    group = 'infrastructure'
+    description = 'Downloads Patchright, injects binaries, and symlinks the bundle folder'
+
+    doLast {
+        def version = "1.57.0"
+        def isMac = Os.isFamily(Os.FAMILY_MAC)
+
+        // Path to the FOLDER we want to symlink
+        def bundleSubPath = isMac ?
+                "Library/Caches/ms-playwright/chromium-1200/chrome-mac-arm64" :
+                ".cache/ms-playwright/chromium-1200/chrome-linux"
+
+        // Path to the ACTUAL binary (for verification check only)
+        def binarySubPath = isMac ?
+                "${bundleSubPath}/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" :
+                "${bundleSubPath}/chrome"
+
+        def subprojectDir = project.projectDir
+        def tempDir = new File(subprojectDir, "temp-patchright")
+        def binDir = new File(subprojectDir, "bin/patchright")
+        def bundleTarget = Paths.get(System.getProperty("user.home"), bundleSubPath)
+        def binaryTarget = Paths.get(System.getProperty("user.home"), binarySubPath)
+
+        // Prep
+        [tempDir, binDir].each { if(it.exists()) it.deleteDir() }
+        tempDir.mkdirs()
+        binDir.mkdirs()
+
+        // Download & Unzip
+        def zipName = isMac ? "playwright-${version}-mac-arm64.zip" : "playwright-${version}-linux.zip"
+        def downloadUrl = "https://github.com/Kaliiiiiiiiii-Vinyzu/patchright/releases/download/v${version}/${zipName}"
+        def zipFile = new File(tempDir, zipName)
+
+        println "Downloading Patchright..."
+        ant.get(src: downloadUrl, dest: zipFile)
+
+        copy {
+            from zipTree(zipFile)
+            into tempDir
+        }
+
+        // Inject
+        println "Injecting Patchright..."
+        exec {
+            workingDir tempDir
+            executable "./node"
+            args "./package/cli.js", "install", "chromium"
+        }
+
+        // Verify & Symlink
+        if (!Files.exists(binaryTarget)) {
+            throw new GradleException("Binary not found at: ${binaryTarget.toAbsolutePath()}")
+        }
+
+        def symlinkPath = Paths.get(binDir.absolutePath, "chrome")
+        println "🔗 Creating symlink: ${symlinkPath} -> ${bundleTarget}"
+
+        Files.createSymbolicLink(symlinkPath, bundleTarget)
+
+        // Cleanup
+        tempDir.deleteDir()
+        println "Patchright setup complete. Symlink at: worker-service/bin/patchright/chrome"
+    }
+}
+
+/**
+ * Helper to run Playwright CLI commands
+ */
+def runPlaywrightCommand(List<String> commandArgs) {
+    project.javaexec {
+        classpath = sourceSets.main.runtimeClasspath
+        mainClass = 'com.microsoft.playwright.CLI'
+        args = commandArgs
+    }
+}
+
+// --- Master Playwright + Patchright Setup Task ---
+tasks.register('installPatchright') {
+    group = 'infrastructure'
+    description = 'Full end-to-end setup: Prep -> Install Patchright'
+
+    // This defines the order: prep must complete before setup starts
+    dependsOn 'prepPlaywright'
+    dependsOn 'setupPatchright'
+
+    // Ensure setupPatchright always runs AFTER prepPlaywright
+    tasks.findByName('setupPatchright').mustRunAfter('prepPlaywright')
+
+    doLast {
+        println "Patchright has been successfully provisioned."
+    }
 }

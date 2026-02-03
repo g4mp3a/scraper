@@ -18,7 +18,7 @@ class ScrapingServiceTest {
     private lateinit var jobPersistenceService: JobPersistenceService
 
     @Mock
-    private lateinit var bingScraper: PlaywrightBingScraper
+    private lateinit var bingScraper: BingScraper
 
     @InjectMocks
     private lateinit var scrapingService: ScrapingService

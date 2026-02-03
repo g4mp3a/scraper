@@ -1,6 +1,6 @@
 package com.scraper.worker.config
 
-import com.scraper.worker.service.PlaywrightBrowserProvider
+import com.scraper.worker.service.BrowserProviderTier3
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Configuration
@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration
  */
 @Configuration
 class PlaywrightConfig(
-    private val browserProvider: PlaywrightBrowserProvider
+    private val browserProvider: BrowserProviderTier3
 ) {
     private val logger = LoggerFactory.getLogger(PlaywrightConfig::class.java)
 

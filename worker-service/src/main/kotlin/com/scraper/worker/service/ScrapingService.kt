@@ -1,23 +1,15 @@
 package com.scraper.worker.service
 
-import com.scraper.worker.domain.search.KeywordSearch
-import com.scraper.worker.domain.search.KeywordSearchRepository
 import com.scraper.worker.domain.search.SearchStatus
 import com.scraper.worker.dto.KeywordJobPayload
-import com.scraper.worker.dto.ScrapeResult
 import org.slf4j.LoggerFactory
-import org.springframework.retry.annotation.Retryable
-import org.springframework.retry.annotation.Backoff
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
-import java.time.ZonedDateTime
-import java.time.ZoneOffset
 import org.springframework.scheduling.annotation.Async // CRITICAL
 
 @Service
 class ScrapingService(
     private val jobPersistenceService: JobPersistenceService,
-    private val bingScraper: PlaywrightBingScraper
+    private val bingScraper: BingScraper
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 

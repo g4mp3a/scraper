@@ -1,6 +1,6 @@
 package com.scraper.worker.integration
 
-import com.scraper.worker.service.PlaywrightBingScraper
+import com.scraper.worker.service.BingScraper
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty
@@ -21,7 +21,7 @@ class PlaywrightBingScraperIT : BaseWorkerIntegrationTest() {
     private val logger = LoggerFactory.getLogger(javaClass)
 
     @Autowired
-    private lateinit var scraper: PlaywrightBingScraper
+    private lateinit var scraper: BingScraper
 
     @Test
     fun `should perform real search on Bing for coffee shops in San Mateo`() {
